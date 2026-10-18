@@ -21,7 +21,7 @@ export default function Privacy() {
       <h2 className="t-h3 mt-6">Your rights</h2>
       <p className={s}>Export all your data or permanently delete your account anytime from Profile → Privacy & data.</p>
       <h2 className="t-h3 mt-6">Not medical advice</h2>
-      <p className={s}>Forma is not a medical device and doesn't diagnose or treat any condition. Nutrition values from photos are estimates.</p>
+      <p className={s}>ATLAS is not a medical device and doesn't diagnose or treat any condition. Nutrition values from photos are estimates.</p>
     </main>
   );
 }

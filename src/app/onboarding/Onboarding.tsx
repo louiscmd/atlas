@@ -215,7 +215,7 @@ export function Onboarding({ exercises }: { exercises: Ex[] }) {
         {step === 7 && (
           <Q title="Anything we should work around?" sub="Optional, but it makes your plan better.">
             <Field label="Injuries or limitations" hint="e.g. “Sore left shoulder when pressing overhead”.">{(p) => <Textarea {...p} value={d.injuries ?? ""} maxLength={500} onChange={(e) => set("injuries", e.target.value)} />}</Field>
-            <Notice tone="warning" icon={<HeartPulse className="size-5" />} title="Not medical advice">For pain, recent injuries or medical conditions, please get guidance from a doctor or physiotherapist before training. Forma doesn't diagnose conditions.</Notice>
+            <Notice tone="warning" icon={<HeartPulse className="size-5" />} title="Not medical advice">For pain, recent injuries or medical conditions, please get guidance from a doctor or physiotherapist before training. ATLAS doesn't diagnose conditions.</Notice>
             <ExercisePicker label="Exercises I can't do" exercises={exercises} value={d.cannotDo} onChange={(v) => set("cannotDo", v)} />
             <ExercisePicker label="Exercises I dislike" exercises={exercises} value={d.dislikes} onChange={(v) => set("dislikes", v)} />
             <ExercisePicker label="Exercises I want to prioritize" exercises={exercises} value={d.prioritize} onChange={(v) => set("prioritize", v)} />

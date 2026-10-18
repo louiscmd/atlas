@@ -39,7 +39,7 @@ export function SignUpForm() {
       <Field label="Password" error={fe.password} hint="At least 8 characters, with a letter and a number.">{(p) => <PasswordInput {...p} name="password" autoComplete="new-password" required />}</Field>
       <label className="t-small flex items-start gap-3 text-fg-2">
         <input type="checkbox" name="terms" className="mt-0.5 size-4 accent-[var(--accent)]" />
-        <span>I agree to the <Link href="/terms" className="text-fg underline">Terms</Link> and <Link href="/privacy" className="text-fg underline">Privacy Policy</Link>, and understand Forma is not medical advice.</span>
+        <span>I agree to the <Link href="/terms" className="text-fg underline">Terms</Link> and <Link href="/privacy" className="text-fg underline">Privacy Policy</Link>, and understand ATLAS is not medical advice.</span>
       </label>
       {fe.terms && <p role="alert" className="t-small text-danger">{fe.terms}</p>}
       <Button type="submit" size="lg" full loading={pending}>Create account</Button>

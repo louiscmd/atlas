@@ -92,7 +92,7 @@ export function Toggle({ checked, onChange, label, description }: { checked: boo
         {description && <p className="t-small text-fg-3">{description}</p>}
       </div>
       <button id={id} type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", checked ? "bg-accent" : "bg-surface-3")}>
-        <span className={cn("absolute top-1 size-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-6" : "translate-x-1")} />
+        <span className={cn("absolute left-0 top-1 size-5 rounded-full bg-white shadow transition-transform", checked ? "translate-x-6" : "translate-x-1")} />
       </button>
     </div>
   );

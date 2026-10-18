@@ -1,22 +1,48 @@
 @import "tailwindcss";
 
 /* ───────── Design tokens ─────────
-   Dark-first. One accent (ember orange) used for primary actions and progress.
-   Light theme is opt-in via Profile → Appearance (data-theme="light"). */
+   White & blue by default. One accent (ATLAS blue) for primary actions and
+   progress. A black theme is available in Profile → Appearance
+   (data-theme="dark"). */
 :root {
-  --bg: #0b0b0d;
-  --surface: #141417;
-  --surface-2: #1c1c21;
-  --surface-3: #26262c;
-  --border: #2a2a31;
-  --border-strong: #3a3a43;
-  --text: #f4f4f6;
-  --text-2: #a3a3ad;
-  --text-3: #74747f;
-  --accent: #ff6a3d;
-  --accent-hover: #ff7d55;
-  --accent-soft: rgb(255 106 61 / 0.14);
-  --accent-contrast: #140904;
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-2: #eef2f8;
+  --surface-3: #e2e8f2;
+  --border: #e1e6ef;
+  --border-strong: #c9d2e0;
+  --text: #0b1220;
+  --text-2: #4a5568;
+  --text-3: #6b7587;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: rgb(37 99 235 / 0.1);
+  --accent-contrast: #ffffff;
+  --success: #0f8a57;
+  --success-soft: rgb(15 138 87 / 0.1);
+  --warning: #b45309;
+  --warning-soft: rgb(180 83 9 / 0.1);
+  --danger: #d6293b;
+  --danger-soft: rgb(214 41 59 / 0.1);
+  --shadow-float: 0 12px 40px -12px rgb(15 30 60 / 0.22), 0 2px 8px rgb(15 30 60 / 0.07);
+  --ring: 0 0 0 3px rgb(37 99 235 / 0.35);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #07090d;
+  --surface: #0f131a;
+  --surface-2: #161b24;
+  --surface-3: #1f2633;
+  --border: #232a36;
+  --border-strong: #333c4b;
+  --text: #f3f6fb;
+  --text-2: #a2acbd;
+  --text-3: #7d889c;
+  --accent: #4f8ff7;
+  --accent-hover: #6aa2fa;
+  --accent-soft: rgb(79 143 247 / 0.15);
+  --accent-contrast: #03122e;
   --success: #3ccf91;
   --success-soft: rgb(60 207 145 / 0.14);
   --warning: #f5b84a;
@@ -24,32 +50,8 @@
   --danger: #ff5c6c;
   --danger-soft: rgb(255 92 108 / 0.14);
   --shadow-float: 0 12px 40px -12px rgb(0 0 0 / 0.65), 0 2px 8px rgb(0 0 0 / 0.35);
-  --ring: 0 0 0 3px rgb(255 106 61 / 0.45);
+  --ring: 0 0 0 3px rgb(79 143 247 / 0.45);
   color-scheme: dark;
-}
-
-:root[data-theme="light"] {
-  --bg: #f6f6f4;
-  --surface: #ffffff;
-  --surface-2: #f1f1ee;
-  --surface-3: #e7e7e3;
-  --border: #e3e3df;
-  --border-strong: #cfcfca;
-  --text: #121214;
-  --text-2: #5d5d66;
-  --text-3: #85858f;
-  --accent: #e8521f;
-  --accent-hover: #d14716;
-  --accent-soft: rgb(232 82 31 / 0.1);
-  --accent-contrast: #ffffff;
-  --success: #12965f;
-  --success-soft: rgb(18 150 95 / 0.1);
-  --warning: #b77806;
-  --warning-soft: rgb(183 120 6 / 0.12);
-  --danger: #d6293b;
-  --danger-soft: rgb(214 41 59 / 0.1);
-  --shadow-float: 0 12px 40px -12px rgb(20 20 30 / 0.25), 0 2px 8px rgb(20 20 30 / 0.08);
-  color-scheme: light;
 }
 
 @theme inline {
@@ -113,7 +115,7 @@ body {
 @keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
-@keyframes pr-glow { 0%, 100% { box-shadow: 0 0 0 0 rgb(255 106 61 / 0); } 50% { box-shadow: 0 0 0 6px rgb(255 106 61 / 0.18); } }
+@keyframes pr-glow { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
 @keyframes scan-line { 0% { top: 8%; } 50% { top: 88%; } 100% { top: 8%; } }
 
 .anim-rise { animation: rise 0.32s cubic-bezier(.2,.8,.2,1) both; }
@@ -133,7 +135,7 @@ body {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
 
-dialog::backdrop { background: rgb(0 0 0 / 0.6); backdrop-filter: blur(2px); }
+dialog::backdrop { background: rgb(8 15 30 / 0.45); backdrop-filter: blur(2px); }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type="number"] { -moz-appearance: textfield; }
 .no-scrollbar::-webkit-scrollbar { display: none; }

@@ -12,7 +12,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ n
       <SocialButtons />
       <OrDivider />
       <LoginForm next={sp.next} />
-      <p className="t-small mt-6 text-center text-fg-2">New to Forma? <Link href="/signup" className="font-semibold text-fg">Create an account</Link></p>
+      <p className="t-small mt-6 text-center text-fg-2">New to ATLAS? <Link href="/signup" className="font-semibold text-fg">Create an account</Link></p>
     </>
   );
 }

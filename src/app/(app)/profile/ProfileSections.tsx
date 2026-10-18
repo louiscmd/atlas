@@ -115,7 +115,17 @@ export function ProfileSections(props: Props) {
       </Section>
 
       <Section icon={<Moon className="size-4" />} title="Appearance & workouts">
-        <div role="radiogroup" aria-label="Theme" className="flex gap-2">{(["dark", "light"] as const).map((t) => <Chip key={t} role="radio" selected={prefs.theme === t} onClick={() => { setPrefsState({ ...prefs, theme: t }); document.documentElement.dataset.theme = t; save(() => setPreferences({ theme: t }), "Theme updated"); }}>{t === "dark" ? "Dark" : "Light"}</Chip>)}</div>
+        <p className="t-small mb-2 text-fg-2">Theme</p>
+        <div role="radiogroup" aria-label="Theme" className="grid max-w-sm grid-cols-2 gap-2">
+          {([["light", "White", "#ffffff", "#2563eb"], ["dark", "Black", "#07090d", "#4f8ff7"]] as const).map(([t, label, bg, accent]) => (
+            <button key={t} type="button" role="radio" aria-checked={prefs.theme === t}
+              onClick={() => { setPrefsState({ ...prefs, theme: t }); document.documentElement.dataset.theme = t; save(() => setPreferences({ theme: t }), `${label} theme on`); }}
+              className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition-colors ${prefs.theme === t ? "border-accent bg-accent-soft" : "border-line bg-surface-2 hover:border-line-strong"}`}>
+              <span aria-hidden className="flex size-9 items-center justify-center rounded-xl border border-line-strong" style={{ background: bg }}><span className="size-3.5 rounded-full" style={{ background: accent }} /></span>
+              <span className="font-semibold">{label}</span>
+            </button>
+          ))}
+        </div>
         <Field label="Smallest weight increment (kg)" className="mt-4 max-w-xs">{(p) => <Select {...p} value={prefs.weightIncrementKg} onChange={(e) => { const v = Number(e.target.value); setPrefsState({ ...prefs, weightIncrementKg: v }); save(() => setPreferences({ weightIncrementKg: v })); }}>{[1, 1.25, 2, 2.5, 5].map((n) => <option key={n} value={n}>{n} kg</option>)}</Select>}</Field>
       </Section>
 

@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { requireOnboardedUser } from "@/lib/server/auth";
 import { getUserContext } from "@/lib/server/services/profile";
 import { getTarget } from "@/lib/server/services/nutrition";
@@ -11,6 +12,7 @@ export default async function Page() {
   const user = await requireOnboardedUser();
   const [ctx, target, accounts, sub] = await Promise.all([getUserContext(user.id), getTarget(user.id), db.account.findMany({ where: { userId: user.id }, select: { provider: true } }), db.subscription.findUnique({ where: { userId: user.id } })]);
   const p = ctx.profile!, g = ctx.goals!;
+  const theme = (await cookies()).get("forma_theme")?.value === "dark" ? "dark" : "light";
   return (
     <>
       <PageHeader title="Profile" subtitle={user.email} />
@@ -21,7 +23,7 @@ export default async function Page() {
         equipment={ctx.equipment}
         restrictions={ctx.restrictions.map((r) => ({ id: r.id, type: r.type, note: r.note, exercise: r.exercise ? { name: r.exercise.name, slug: r.exercise.slug } : null }))}
         notifications={(ctx.preferences?.notifications ?? {}) as Record<string, boolean>}
-        prefs={{ theme: (ctx.preferences?.theme ?? "dark") as "dark" | "light", analyticsOptIn: ctx.preferences?.analyticsOptIn ?? true, weightIncrementKg: ctx.preferences?.weightIncrementKg ?? 2.5 }}
+        prefs={{ theme, analyticsOptIn: ctx.preferences?.analyticsOptIn ?? true, weightIncrementKg: ctx.preferences?.weightIncrementKg ?? 2.5 }}
         target={target ? { calories: target.calories, proteinG: target.proteinG } : null}
         providers={accounts.map((a) => a.provider)} plan={sub?.plan ?? "free"}
       />

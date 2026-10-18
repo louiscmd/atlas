@@ -27,7 +27,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
         <section className="py-16 md:py-24">
           <p className="t-caption mb-4 text-accent">Training · Nutrition · Progress</p>
           <h1 className="t-display max-w-3xl">Know exactly what to do today.</h1>
-          <p className="t-body mt-5 max-w-xl text-lg text-fg-2">Forma turns your goals into a weekly plan, guides every set, tracks what you eat, and adapts as you get stronger.</p>
+          <p className="t-body mt-5 max-w-xl text-lg text-fg-2">ATLAS turns your goals into a weekly plan, guides every set, tracks what you eat, and adapts as you get stronger.</p>
           <div className="mt-8 flex flex-wrap gap-3"><ButtonLink href="/signup" size="lg">Create your plan</ButtonLink><ButtonLink href="/login" size="lg" variant="secondary">I have an account</ButtonLink></div>
         </section>
         <section className="grid gap-4 pb-20 sm:grid-cols-2 lg:grid-cols-3">
@@ -40,7 +40,7 @@ export default async function Landing({ searchParams }: { searchParams: Promise<
           ))}
         </section>
         <footer className="t-small flex flex-wrap gap-4 border-t border-line py-8 text-fg-3">
-          <span>Forma is not a medical device. Consult a professional for medical advice.</span>
+          <span>ATLAS is not a medical device. Consult a professional for medical advice.</span>
           <a href="/privacy" className="hover:text-fg">Privacy</a>
         </footer>
       </main>

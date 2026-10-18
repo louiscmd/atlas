@@ -1,4 +1,4 @@
-# Forma — fitness & wellness app
+# ATLAS — fitness & wellness app
 
 Import your training → set goals → get a personalized plan → train in the app → track progression → log nutrition (incl. AI food scanning) → weekly AI review → adapt.
 

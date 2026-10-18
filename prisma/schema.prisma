@@ -1,4 +1,4 @@
-// Forma — data model (PostgreSQL in every environment).
+// ATLAS — data model (PostgreSQL in every environment).
 // String "enum" columns are validated in the application layer
 // (src/lib/domain/enums.ts) so new values don't need a migration.
 

@@ -26,7 +26,7 @@ async function limited(bucket: string) {
 async function sendVerification(userId: string, email: string) {
   const token = await issueAuthToken(userId, "verify_email", 60 * 24);
   const link = `${env.appUrl}/verify-email?token=${token}`;
-  await sendMail(email, "Verify your email", `Welcome to Forma! Confirm your email: ${link}`);
+  await sendMail(email, "Verify your email", `Welcome to ATLAS! Confirm your email: ${link}`);
   return env.isProd ? undefined : link;
 }
 
@@ -72,7 +72,7 @@ export async function requestPasswordReset(_: AuthState, form: FormData): Promis
   if (user) {
     const token = await issueAuthToken(user.id, "reset_password", 60);
     const link = `${env.appUrl}/reset-password?token=${token}`;
-    await sendMail(user.email, "Reset your password", `Reset your Forma password (valid for 1 hour): ${link}`);
+    await sendMail(user.email, "Reset your password", `Reset your ATLAS password (valid for 1 hour): ${link}`);
     if (!env.isProd) devLink = link;
   }
   // Same response whether or not the account exists (no account enumeration)
