@@ -15,7 +15,7 @@
     "db:local": "node scripts/local-postgres.mjs",
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
-    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts --if-empty && next build"
+    "vercel-build": "node scripts/check-env.mjs && prisma migrate deploy && tsx prisma/seed.ts --if-empty && next build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
