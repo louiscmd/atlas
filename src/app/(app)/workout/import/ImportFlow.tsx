@@ -44,6 +44,7 @@ export function ImportFlow({ aiEnabled }: { aiEnabled: boolean }) {
 
   const upd = (fn: (p: ParsedWorkout) => void) => setParsed((p) => { if (!p) return p; const c = structuredClone(p); fn(c); return c; });
   const unmatched = parsed?.days.flatMap((d) => d.exercises).filter((e) => !e.exerciseId).length ?? 0;
+  const unnamed = parsed?.days.some((d) => d.exercises.some((e) => !e.exerciseId && !e.name.trim())) ?? false;
   const empty = parsed ? parsed.days.every((d) => d.exercises.length === 0) : true;
   const weekdays = parsed?.days.map((d) => d.weekday).filter((w) => w != null) ?? [];
   const dupDay = new Set(weekdays).size !== weekdays.length;
@@ -88,8 +89,20 @@ export function ImportFlow({ aiEnabled }: { aiEnabled: boolean }) {
             {d.exercises.map((e, ei) => (
               <li key={ei} className="grid grid-cols-[1fr_auto] items-center gap-3 px-5 py-3 sm:grid-cols-[1fr_auto_auto]">
                 <div className="min-w-0">
-                  <button className="text-left font-semibold hover:text-accent" onClick={() => setPicking({ d: di, e: ei })}>{e.name}</button>
-                  {!e.exerciseId ? <p className="t-small text-warning">Not matched — tap to choose the exercise</p> : e.rawText && <p className="t-small truncate text-fg-3">“{e.rawText}”</p>}
+                  {e.exerciseId ? (
+                    <>
+                      <button className="text-left font-semibold hover:text-accent" onClick={() => setPicking({ d: di, e: ei })}>{e.name}</button>
+                      {e.rawText && <p className="t-small truncate text-fg-3">“{e.rawText}”</p>}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Input aria-label="Custom exercise name" value={e.name} maxLength={80} onChange={(ev) => upd((p) => { p.days[di].exercises[ei].name = ev.target.value; })} className="h-9 font-semibold" />
+                        <Badge tone="accent">Custom</Badge>
+                      </div>
+                      <p className="t-small mt-1 text-fg-3">Not in our library — it'll be added to your Exercise Vault as a custom exercise. <button className="font-medium text-accent hover:underline" onClick={() => setPicking({ d: di, e: ei })}>Pick a library match instead</button></p>
+                    </>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Input aria-label="Sets" inputMode="numeric" value={e.sets} onChange={(ev) => upd((p) => { p.days[di].exercises[ei].sets = Math.max(1, Math.min(10, Number(ev.target.value) || 1)); })} className="h-9 w-12 px-2 text-center" />
@@ -109,8 +122,8 @@ export function ImportFlow({ aiEnabled }: { aiEnabled: boolean }) {
 
       <div className="sticky bottom-20 z-10 flex gap-3 rounded-2xl border border-line bg-surface p-3 shadow-[var(--shadow-float)] md:bottom-4">
         <Button variant="secondary" onClick={() => { setParsed(null); setMeta(null); }}>Edit text</Button>
-        <Button full size="lg" disabled={unmatched > 0 || empty || dupDay} onClick={() => setConfirm(true)}>
-          {unmatched > 0 ? `Match ${unmatched} exercise${unmatched > 1 ? "s" : ""} first` : dupDay ? "Two days share a weekday" : "Confirm & save plan"}
+        <Button full size="lg" disabled={empty || dupDay || unnamed} onClick={() => setConfirm(true)}>
+          {dupDay ? "Two days share a weekday" : unnamed ? "Name every custom exercise" : "Confirm & save plan"}
         </Button>
       </div>
 
@@ -124,7 +137,7 @@ export function ImportFlow({ aiEnabled }: { aiEnabled: boolean }) {
           setPicking(null);
         }} />
       <ConfirmDialog open={confirm} onClose={() => setConfirm(false)} loading={saving} title="Save as your active plan?" confirmLabel="Save plan"
-        body="This becomes your active plan. Any current plan is kept under “Other plans” — nothing is deleted, and your original text is preserved."
+        body={<>This becomes your active plan. Any current plan is kept under “Other plans” — nothing is deleted, and your original text is preserved.{unmatched > 0 && <> {unmatched} custom exercise{unmatched > 1 ? "s" : ""} will be added to your Exercise Vault.</>}</>}
         onConfirm={() => startSave(async () => {
           const r = await confirmImport(parsed, text, name);
           if (!r.ok) { setConfirm(false); return toast(r.error, "error"); }

@@ -8,7 +8,7 @@ import { track } from "@/lib/server/analytics";
 import { ParsedWorkoutSchema, WorkoutPlanSchema, type ParsedWorkout, type WorkoutPlanDraft } from "@/lib/domain/schemas";
 import * as plans from "@/lib/server/services/plans";
 import * as workouts from "@/lib/server/services/workouts";
-import { getAlternativesForUser, getLibrary } from "@/lib/server/services/exercises";
+import { getAlternativesForUser, getUserLibrary } from "@/lib/server/services/exercises";
 import { getUserContext, setRestriction } from "@/lib/server/services/profile";
 import { notify } from "@/lib/server/services/notifications";
 import { buildWeeklyPlan, parseRoutine } from "@/lib/ai/services/workoutPlanner";
@@ -115,8 +115,8 @@ export async function getAlternatives(exerciseId: string) {
 }
 
 export async function searchLibrary() {
-  await requireOnboardedUser();
-  return run(async () => (await getLibrary()).map((e) => ({ id: e.id, name: e.name, category: e.category, equipment: e.equipment, primaryMuscles: e.primaryMuscles })));
+  const user = await requireOnboardedUser();
+  return run(async () => (await getUserLibrary(user.id)).map((e) => ({ id: e.id, name: e.name, category: e.category, equipment: e.equipment, primaryMuscles: e.primaryMuscles, isCustom: e.ownerId != null })));
 }
 
 export async function setExercisePreference(exerciseId: string, type: "cannot_do" | "dislike" | "prioritize" | null) {

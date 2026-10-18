@@ -4,7 +4,7 @@ import { parseWorkoutText } from "@/lib/engines/workoutParser";
 import { generatePlan, checkPlanConstraints, pickWeekdays, type PlannerInput } from "@/lib/engines/planGenerator";
 import { hasEquipment } from "@/lib/engines/replacement";
 import { SESSION_LENGTHS } from "@/lib/domain/enums";
-import { getLibrary } from "@/lib/server/services/exercises";
+import { getLibrary, getUserLibrary } from "@/lib/server/services/exercises";
 import { getUserContext } from "@/lib/server/services/profile";
 import { getActivePlan } from "@/lib/server/services/plans";
 import { db } from "@/lib/server/db";
@@ -28,7 +28,7 @@ export function inferDayName(muscles: string[]) {
 
 /** Workout Planner AI — routine import. Falls back to the deterministic parser. */
 export async function parseRoutine(userId: string, text: string): Promise<Sourced<ParsedWorkout>> {
-  const lib = await getLibrary();
+  const lib = await getUserLibrary(userId); // includes the user's custom exercises, so re-imports match them
   const matchable = lib.map((e) => ({ id: e.id, name: e.name, slug: e.slug }));
   const byId = new Map(lib.map((e) => [e.id, e]));
   const nameDays = (w: ParsedWorkout) => {

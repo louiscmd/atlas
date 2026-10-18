@@ -133,8 +133,8 @@ describe("workout parser", () => {
   });
   it("flags unmatched exercises for review", () => {
     const r = parseWorkoutText("Day 1:\nZercher carries 3x20", match);
-    expect(r.days[0].exercises[0].exerciseId).toBeNull();
-    expect(r.warnings[0]).toMatch(/couldn't match/);
+    expect(r.days[0].exercises[0]).toMatchObject({ exerciseId: null, name: "Zercher Carries" });
+    expect(r.warnings[0]).toMatch(/Not in our library/);
   });
   it("matches exact names", () => expect(matchExercise("Goblet Squat", match)?.id).toBe("goblet-squat"));
 });

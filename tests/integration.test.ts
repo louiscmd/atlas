@@ -5,7 +5,7 @@ import * as plans from "@/lib/server/services/plans";
 import * as workouts from "@/lib/server/services/workouts";
 import * as nutrition from "@/lib/server/services/nutrition";
 import * as progress from "@/lib/server/services/progress";
-import { getAlternativesForUser, getExercisePerformance } from "@/lib/server/services/exercises";
+import { getAlternativesForUser, getExercisePerformance, getExerciseDetail, getLibrary, getUserLibrary } from "@/lib/server/services/exercises";
 import { computeWeeklyMetrics, currentWeekStart } from "@/lib/server/services/reports";
 import { rulesCoach } from "@/lib/ai/services/coach";
 import { parseRoutine, buildWeeklyPlan } from "@/lib/ai/services/workoutPlanner";
@@ -257,6 +257,63 @@ describe("data isolation — user B can never touch user A's data", () => {
   });
 });
 
+describe("custom exercises from imports", () => {
+  let customId: string, customSlug: string;
+  it("saves unmatched imported exercises as the user's own custom exercises", async () => {
+    const plan = await plans.saveImportedPlan(A, { warnings: [], days: [{ weekday: 5, name: "Strongman", exercises: [
+      { rawText: "zercher carry 3x20", exerciseId: null, name: "Zercher Carry", sets: 3, repMin: 20, repMax: 20, weightKg: null, notes: null },
+      { rawText: "bench 3x8", exerciseId: (await db.exercise.findUniqueOrThrow({ where: { slug: "barbell-bench-press" } })).id, name: "Barbell Bench Press", sets: 3, repMin: 8, repMax: 8, weightKg: null, notes: null },
+    ] }] }, "Saturday: zercher carry 3x20, bench 3x8", "Strongman import");
+    const full = await plans.getPlan(A, plan.id);
+    const custom = await db.exercise.findUniqueOrThrow({ where: { id: full.days[0].exercises[0].exerciseId } });
+    customId = custom.id; customSlug = custom.slug;
+    expect(custom).toMatchObject({ ownerId: A, name: "Zercher Carry", category: "custom", repMin: 20, repMax: 20 });
+    expect((await getUserLibrary(A)).some((e) => e.id === customId)).toBe(true);
+    expect((await getLibrary()).some((e) => e.id === customId)).toBe(false);
+    expect((await getExerciseDetail(customSlug, A))?.isCustom).toBe(true);
+  });
+
+  it("reuses the same custom exercise on re-import (case-insensitive)", async () => {
+    await plans.saveImportedPlan(A, { warnings: [], days: [{ weekday: null, name: "Again", exercises: [
+      { rawText: "", exerciseId: null, name: "zercher   carry", sets: 2, repMin: 15, repMax: 15, weightKg: null, notes: null },
+    ] }] }, "", "Again");
+    expect(await db.exercise.count({ where: { ownerId: A, name: { equals: "Zercher Carry", mode: "insensitive" } } })).toBe(1);
+    const parsed = await parseRoutine(A, "Monday: zercher carry 3x20");
+    expect(parsed.data.days[0].exercises[0].exerciseId).toBe(customId);
+  });
+
+  it("is invisible and unusable for other users", async () => {
+    expect((await getUserLibrary(B)).some((e) => e.id === customId)).toBe(false);
+    expect(await getExerciseDetail(customSlug, B)).toBeNull();
+    expect((await parseRoutine(B, "Monday: zercher carry 3x20")).data.days[0].exercises[0].exerciseId).toBeNull();
+    const bPlan = await plans.startProgram(B, "dumbbell-home-3");
+    const bDay = (await plans.getPlan(B, bPlan.id)).days[0];
+    await expect(plans.addExerciseToDay(B, bDay.id, customId)).rejects.toBeInstanceOf(plans.NotFoundError);
+    await expect(plans.replacePlanExercise(B, bDay.exercises[0].id, customId)).rejects.toBeInstanceOf(plans.NotFoundError);
+    const s = await workouts.startSession(B, bDay.id);
+    await expect(workouts.addExerciseToSession(B, s.id, customId)).rejects.toBeInstanceOf(plans.NotFoundError);
+    const se = (await workouts.getSession(B, s.id)).exercises[0];
+    await expect(workouts.replaceSessionExercise(B, se.id, customId, false)).rejects.toBeInstanceOf(plans.NotFoundError);
+    await workouts.discardSession(B, s.id);
+  });
+
+  it("can be trained, logged and deleted with the account", async () => {
+    const D = (await db.user.create({ data: { email: `d-${Date.now()}@forma.test` } })).id;
+    await saveOnboarding(D, onboarding());
+    const plan = await plans.saveImportedPlan(D, { warnings: [], days: [{ weekday: null, name: "Odd lifts", exercises: [
+      { rawText: "", exerciseId: null, name: "Atlas Stone Load", sets: 3, repMin: 3, repMax: 5, weightKg: null, notes: null },
+    ] }] }, "", "Odd lifts");
+    const day = (await plans.getPlan(D, plan.id)).days[0];
+    const s = await workouts.startSession(D, day.id);
+    const se = (await workouts.getSession(D, s.id)).exercises[0];
+    await workouts.logSet(D, { clientId: `d-set-${Date.now()}`, sessionExerciseId: se.id, setNumber: 1, weightKg: 100, reps: 3, rir: 2 });
+    await workouts.completeSession(D, s.id);
+    await deleteUserAccount(D);
+    expect(await db.exercise.count({ where: { ownerId: D } })).toBe(0);
+    expect(await db.workoutSet.count({ where: { userId: D } })).toBe(0);
+  });
+});
+
 describe("weekly report", () => {
   it("computes metrics from real data and never invents facts", async () => {
     const m = await computeWeeklyMetrics(A, "UTC", currentWeekStart("UTC"));
@@ -275,7 +332,7 @@ describe("AI services without a key", () => {
     expect(r).toEqual({ ok: false, code: "not_configured" });
   });
   it("routine import falls back to the deterministic parser with a notice", async () => {
-    const r = await parseRoutine(A, "Monday: bench 3x8, zercher carry 3x20");
+    const r = await parseRoutine(A, "Monday: bench 3x8, yoke walk 3x20");
     expect(r.source).toBe("rules");
     expect(r.data.days[0].exercises[0].exerciseId).toBeTruthy();
     expect(r.notice).toMatch(/isn't configured/);

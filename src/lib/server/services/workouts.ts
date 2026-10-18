@@ -4,7 +4,7 @@ import { localDate, weekdayOf } from "@/lib/dates";
 import { recommendNext } from "@/lib/engines/progression";
 import { bestsFromHistory, detectPRs, PR_LABEL } from "@/lib/engines/records";
 import { totalVolume } from "@/lib/engines/performance";
-import { getExercisePerformance } from "./exercises";
+import { assertExerciseAccess, getExercisePerformance } from "./exercises";
 import { getActivePlan, NotFoundError } from "./plans";
 import { notify } from "./notifications";
 import { track } from "../analytics";
@@ -141,8 +141,7 @@ export async function setExerciseNote(userId: string, sessionExerciseId: string,
 /** Swaps the exercise for this session only. Completed sets stay with the original exercise. */
 export async function replaceSessionExercise(userId: string, sessionExerciseId: string, newExerciseId: string, alsoUpdatePlan: boolean) {
   const se = await ownSessionExercise(userId, sessionExerciseId);
-  const ex = await db.exercise.findUnique({ where: { id: newExerciseId } });
-  if (!ex) throw new NotFoundError("Exercise not found");
+  const ex = await assertExerciseAccess(userId, newExerciseId);
   const done = await db.workoutSet.count({ where: { sessionExerciseId } });
   const perf = await getExercisePerformance(userId, ex.id);
   const rec = recommendNext({ sets: se.targetSets, repMin: se.repMin, repMax: se.repMax, rirTarget: se.rirTarget }, perf?.recentSessions ?? [], 2.5, ex.isTimed);
@@ -164,7 +163,7 @@ export async function replaceSessionExercise(userId: string, sessionExerciseId: 
 export async function addExerciseToSession(userId: string, sessionId: string, exerciseId: string) {
   const session = await db.workoutSession.findFirst({ where: { id: sessionId, userId, status: "in_progress" }, include: { _count: { select: { exercises: true } } } });
   if (!session) throw new NotFoundError("Workout not found");
-  const ex = await db.exercise.findUniqueOrThrow({ where: { id: exerciseId } });
+  const ex = await assertExerciseAccess(userId, exerciseId);
   const perf = await getExercisePerformance(userId, ex.id);
   const rec = recommendNext({ sets: 3, repMin: ex.repMin, repMax: ex.repMax, rirTarget: 2 }, perf?.recentSessions ?? [], 2.5, ex.isTimed);
   return db.workoutSessionExercise.create({ data: { sessionId, exerciseId, exerciseName: ex.name, order: session._count.exercises, targetSets: 3, repMin: ex.repMin, repMax: ex.repMax, restSec: ex.restSec, rirTarget: ex.isTimed ? null : 2, recommendation: JSON.stringify(rec) } });

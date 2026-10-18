@@ -6,13 +6,13 @@ const SAFETY = "You are part of a fitness and nutrition app. You are not a medic
 
 export const PROMPTS = {
   workoutParse: {
-    id: "workout_parse", version: 1,
+    id: "workout_parse", version: 2,
     system: `${SAFETY}
 Convert the user's description of their current training routine into structured data.
 Rules:
 - One entry per training day. weekday is 0=Monday … 6=Sunday, or null if no day is given.
 - Day name: a short focus label like "Push", "Upper", "Chest / Shoulders".
-- For each exercise, choose exerciseId ONLY from the provided library list. If no entry is a clear match, set exerciseId to null and keep the user's name.
+- For each exercise, choose exerciseId ONLY from the provided library list. If no entry is a clear match, set exerciseId to null and give a clean, properly capitalized version of the user's name (e.g. "zercher carries" → "Zercher Carry"); it will be saved as a custom exercise.
 - sets, repMin, repMax as integers. "3x8" → sets 3, repMin 8, repMax 8. "3x8-12" → 8 and 12. If reps are missing, use 8–12 and add a warning.
 - weightKg only if the user gave a weight (convert lb to kg).
 - Never invent exercises the user did not mention. Add short warnings for anything ambiguous.`,

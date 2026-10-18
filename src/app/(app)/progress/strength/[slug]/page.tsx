@@ -14,7 +14,7 @@ import { ButtonLink } from "@/components/ui/Button";
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const user = await requireOnboardedUser();
-  const ex = await getExerciseDetail((await params).slug);
+  const ex = await getExerciseDetail((await params).slug, user.id);
   if (!ex) notFound();
   const [ctx, list] = await Promise.all([getUserContext(user.id), strengthOverview(user.id)]);
   const s = list.find((x) => x.exerciseId === ex.id);

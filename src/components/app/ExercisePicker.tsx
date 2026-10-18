@@ -8,24 +8,22 @@ import { Badge } from "@/components/ui/Card";
 import { EQUIPMENT, labelOf } from "@/lib/domain/enums";
 import { getAlternatives, searchLibrary } from "@/app/(app)/workout/actions";
 
-type LibItem = { id: string; name: string; category: string; equipment: string[]; primaryMuscles: string[] };
+type LibItem = { id: string; name: string; category: string; equipment: string[]; primaryMuscles: string[]; isCustom?: boolean };
 type Alt = LibItem & { reasons: string[] };
-
-let libraryCache: LibItem[] | null = null;
 
 /** Search the library; when `replaceFor` is set, shows ranked alternatives first. */
 export function ExercisePicker({ open, onClose, onPick, title, replaceFor, footer }: { open: boolean; onClose: () => void; onPick: (id: string, name: string) => void; title: string; replaceFor?: { exerciseId: string; name: string } | null; footer?: React.ReactNode }) {
   const [q, setQ] = useState("");
-  const [lib, setLib] = useState<LibItem[] | null>(libraryCache);
+  const [lib, setLib] = useState<LibItem[] | null>(null); // per-mount: the list includes this user's custom exercises
   const [alts, setAlts] = useState<Alt[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setQ("");
-    if (!libraryCache) searchLibrary().then((r) => { if (r.ok) { libraryCache = r.data; setLib(r.data); } else setError(r.error); });
+    if (!lib) searchLibrary().then((r) => { if (r.ok) setLib(r.data); else setError(r.error); });
     if (replaceFor) { setAlts(null); getAlternatives(replaceFor.exerciseId).then((r) => setAlts(r.ok ? r.data : [])); }
-  }, [open, replaceFor]);
+  }, [open, replaceFor]); // eslint-disable-line react-hooks/exhaustive-deps -- load once per mount
 
   const results = useMemo(() => {
     if (!lib) return [];
@@ -64,7 +62,7 @@ function Row({ item, reasons, onPick }: { item: LibItem; reasons?: string[]; onP
       <button type="button" onClick={onPick} className="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-surface-2 px-4 py-3 text-left hover:border-line-strong">
         <span className="min-w-0">
           <span className="block font-semibold">{item.name}</span>
-          <span className="t-small block truncate text-fg-3">{item.equipment.length ? item.equipment.map((q) => labelOf(EQUIPMENT, q)).join(", ") : "Bodyweight"}</span>
+          <span className="t-small block truncate text-fg-3">{item.isCustom ? "Your custom exercise" : item.equipment.length ? item.equipment.map((q) => labelOf(EQUIPMENT, q)).join(", ") : "Bodyweight"}</span>
         </span>
         {reasons?.[0] && <Badge tone="accent">{reasons.includes("Similar movement") ? "Similar movement" : reasons[0]}</Badge>}
       </button>

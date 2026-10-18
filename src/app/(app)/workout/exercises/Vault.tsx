@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/States";
 import { Button } from "@/components/ui/Button";
 
-type Ex = { id: string; slug: string; name: string; category: string; primaryMuscles: string[]; equipment: string[]; difficulty: string; movementType: string };
+type Ex = { id: string; slug: string; name: string; category: string; primaryMuscles: string[]; equipment: string[]; difficulty: string; movementType: string; isCustom: boolean };
 
 export function Vault({ exercises, myEquipment }: { exercises: Ex[]; myEquipment: string[] }) {
   const [q, setQ] = useState("");
@@ -42,6 +42,7 @@ export function Vault({ exercises, myEquipment }: { exercises: Ex[]; myEquipment
       </div>
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 md:mx-0 md:flex-wrap md:px-0">
         <Chip role="radio" selected={!cat} onClick={() => setCat(null)}>All</Chip>
+        {exercises.some((e) => e.isCustom) && <Chip role="radio" selected={cat === "custom"} onClick={() => setCat(cat === "custom" ? null : "custom")} className="shrink-0">My exercises</Chip>}
         {CATEGORIES.map((c) => <Chip key={c.key} role="radio" selected={cat === c.key} onClick={() => setCat(cat === c.key ? null : c.key)} className="shrink-0">{c.label}</Chip>)}
       </div>
       {showFilters && (
@@ -61,9 +62,9 @@ export function Vault({ exercises, myEquipment }: { exercises: Ex[]; myEquipment
               <Link href={`/workout/exercises/${e.slug}`} className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:bg-surface-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{e.name}</p>
-                  <p className="t-small truncate text-fg-2">{e.primaryMuscles.map((m) => labelOf(MUSCLES, m)).join(", ")} · {e.equipment.length ? e.equipment.map((x) => labelOf(EQUIPMENT, x)).join(", ") : "Bodyweight"}</p>
+                  <p className="t-small truncate text-fg-2">{e.isCustom ? "Added from your imported routine" : `${e.primaryMuscles.map((m) => labelOf(MUSCLES, m)).join(", ")} · ${e.equipment.length ? e.equipment.map((x) => labelOf(EQUIPMENT, x)).join(", ") : "Bodyweight"}`}</p>
                 </div>
-                {!e.equipment.every((x) => have.has(x)) && <Badge>Needs equipment</Badge>}
+                {e.isCustom ? <Badge tone="accent">Custom</Badge> : !e.equipment.every((x) => have.has(x)) && <Badge>Needs equipment</Badge>}
                 <ChevronRight className="size-4 text-fg-3" aria-hidden />
               </Link>
             </li>

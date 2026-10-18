@@ -48,6 +48,7 @@ model User {
   notifications Notification[]
   aiRequests    AIRequest[]
   subscription  Subscription?
+  customExercises Exercise[] @relation("CustomExercises")
 }
 
 model Account {
@@ -177,8 +178,12 @@ model Exercise {
   repMax           Int
   restSec          Int
   isTimed          Boolean  @default(false) // reps represent seconds
+  // null = shared library exercise; set = custom exercise private to that user
+  ownerId          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  owner            User?    @relation("CustomExercises", fields: [ownerId], references: [id], onDelete: Cascade)
 
   alternatives     ExerciseAlternative[] @relation("ExerciseAlternatives")
   alternativeOf    ExerciseAlternative[] @relation("AlternativeTargets")
@@ -191,6 +196,7 @@ model Exercise {
   restrictions     UserRestrictions[]
 
   @@index([category])
+  @@index([ownerId])
 }
 
 model ExerciseAlternative {
@@ -269,7 +275,7 @@ model ProgramExercise {
   tempo        String?
   notes        String?
   day          ProgramDay @relation(fields: [programDayId], references: [id], onDelete: Cascade)
-  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: NoAction)
 
   @@index([programDayId])
 }
@@ -346,7 +352,7 @@ model WorkoutExercise {
   tempo      String?
   notes      String?
   day        WorkoutDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  exercise   Exercise   @relation(fields: [exerciseId], references: [id], onDelete: NoAction)
 
   @@index([dayId])
 }
@@ -394,7 +400,7 @@ model WorkoutSessionExercise {
   replacedFrom String? // exercise name it replaced
   recommendation String? // progression suggestion shown at start
   session      WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  exercise     Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  exercise     Exercise       @relation(fields: [exerciseId], references: [id], onDelete: NoAction)
   sets         WorkoutSet[]
 
   @@index([sessionId])
@@ -416,7 +422,7 @@ model WorkoutSet {
   user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   session           WorkoutSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionExercise   WorkoutSessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
-  exercise          Exercise               @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  exercise          Exercise               @relation(fields: [exerciseId], references: [id], onDelete: NoAction)
 
   @@index([userId, exerciseId, completedAt])
   @@index([sessionExerciseId])
@@ -555,7 +561,7 @@ model MealItem {
   servings Float
   order    Int    @default(0)
   meal     Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  food     Food   @relation(fields: [foodId], references: [id], onDelete: Restrict)
+  food     Food   @relation(fields: [foodId], references: [id], onDelete: NoAction)
 }
 
 model FoodScan {

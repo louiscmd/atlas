@@ -65,6 +65,9 @@ const ALIASES: [RegExp, string][] = [
   [/\bchest press\b/, "machine-chest-press"],
 ];
 
+/** "zercher carries" → "Zercher Carries"; keeps short all-caps like "RDL" or "DB". */
+const titleCase = (s: string) => s.replace(/\s+/g, " ").trim().replace(/\b([a-zA-Z])([a-zA-Z]*)/g, (w, a: string, b: string) => (w.length <= 3 && w === w.toUpperCase() ? w : a.toUpperCase() + b.toLowerCase()));
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
 
 export function matchExercise(raw: string, library: MatchableExercise[]): MatchableExercise | null {
@@ -107,7 +110,7 @@ export function parseLine(line: string, library: MatchableExercise[]) {
   return {
     rawText: line.trim().slice(0, 200),
     exerciseId: match?.id ?? null,
-    name: (match?.name ?? namePart).slice(0, 100) || "Unknown exercise",
+    name: (match?.name ?? titleCase(namePart)).slice(0, 100) || "Unknown exercise",
     sets, repMin, repMax: Math.min(repMax, 100), weightKg, notes: null,
   };
 }
@@ -152,7 +155,7 @@ export function parseWorkoutText(text: string, library: MatchableExercise[]): Pa
 
   const nonEmpty = days.filter((d) => d.exercises.length).slice(0, 7);
   const unmatched = nonEmpty.flatMap((d) => d.exercises.filter((e) => !e.exerciseId).map((e) => e.name));
-  if (unmatched.length) warnings.push(`We couldn't match: ${unmatched.slice(0, 5).join(", ")}. Pick the right exercise for each before saving.`);
+  if (unmatched.length) warnings.push(`Not in our library: ${unmatched.slice(0, 5).join(", ")}. They'll be saved as your own custom exercises — or pick a library match.`);
   if (!nonEmpty.length) warnings.push("No exercises found. Use a format like “Bench Press — 3 × 8”, one per line.");
   return { days: nonEmpty.length ? nonEmpty : [{ weekday: null, name: "Workout", exercises: [] }], warnings };
 }

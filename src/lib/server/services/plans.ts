@@ -2,9 +2,10 @@ import "server-only";
 import { db } from "../db";
 import type { Prisma } from "@prisma/client";
 import { WorkoutPlanSchema, type ParsedWorkout, type WorkoutPlanDraft } from "@/lib/domain/schemas";
-import { getLibrary } from "./exercises";
+import { assertExerciseAccess, ensureCustomExercises, getUserLibrary } from "./exercises";
 
-export class NotFoundError extends Error {}
+export { NotFoundError } from "./errors";
+import { NotFoundError } from "./errors";
 
 const planInclude = {
   days: {
@@ -76,18 +77,24 @@ export async function savePlanDraft(userId: string, draft: WorkoutPlanDraft, sou
   return createPlan(userId, { ...plan, source, equipment, days: plan.days.map((d) => ({ ...d, exercises: [...d.exercises].sort((a, b) => a.order - b.order) })) });
 }
 
-/** Saves a user-reviewed import. Every exercise must be matched to the library. */
+/**
+ * Saves a user-reviewed import. Exercises the library couldn't match are
+ * saved as the user's own custom exercises (visible only to them).
+ */
 export async function saveImportedPlan(userId: string, parsed: ParsedWorkout, originalText: string, name: string) {
-  const lib = new Map((await getLibrary()).map((e) => [e.id, e]));
+  const lib = new Map((await getUserLibrary(userId)).map((e) => [e.id, e]));
+  const unmatched = parsed.days.flatMap((d) => d.exercises.filter((e) => !e.exerciseId || !lib.has(e.exerciseId)));
+  const customIds = await ensureCustomExercises(userId, unmatched.map((e) => ({ name: e.name, repMin: e.repMin, repMax: e.repMax })));
   const days = parsed.days.filter((d) => d.exercises.length).map((d) => ({
     weekday: d.weekday, name: d.name || "Workout", focus: null,
-    exercises: d.exercises.map((e) => {
-      const ex = e.exerciseId ? lib.get(e.exerciseId) : null;
-      if (!ex) throw new Error(`Choose a library exercise for “${e.name}”`);
-      return { exerciseId: ex.id, sets: e.sets, repMin: Math.min(e.repMin, e.repMax), repMax: Math.max(e.repMin, e.repMax), restSec: ex.restSec, rirTarget: ex.isTimed ? null : 2, notes: e.notes };
+    exercises: d.exercises.filter((e) => e.name.trim() || e.exerciseId).map((e) => {
+      const ex = e.exerciseId ? lib.get(e.exerciseId) : undefined;
+      const exerciseId = ex?.id ?? customIds.get(e.name.trim().replace(/\s+/g, " ").slice(0, 80).toLowerCase());
+      if (!exerciseId) throw new Error(`Give “${e.name || "this exercise"}” a name`);
+      return { exerciseId, sets: e.sets, repMin: Math.min(e.repMin, e.repMax), repMax: Math.max(e.repMin, e.repMax), restSec: ex?.restSec ?? 90, rirTarget: ex?.isTimed ? null : 2, notes: e.notes };
     }),
   }));
-  if (!days.length) throw new Error("Add at least one exercise");
+  if (!days.some((d) => d.exercises.length)) throw new Error("Add at least one exercise");
   const used = days.map((d) => d.weekday).filter((w) => w != null);
   if (new Set(used).size !== used.length) throw new Error("Two workout days are on the same weekday");
   return createPlan(userId, { name: name || "My Imported Plan", source: "imported", originalText: originalText.slice(0, 5000), days });
@@ -167,7 +174,7 @@ async function syncDaysPerWeek(planId: string) {
 // ───────── Exercise operations ─────────
 export async function addExerciseToDay(userId: string, dayId: string, exerciseId: string) {
   const day = await ownDay(userId, dayId);
-  const ex = await db.exercise.findUniqueOrThrow({ where: { id: exerciseId } });
+  const ex = await assertExerciseAccess(userId, exerciseId);
   return db.workoutExercise.create({ data: { dayId, exerciseId, order: day.exercises.length, sets: 3, repMin: ex.repMin, repMax: ex.repMax, restSec: ex.restSec, rirTarget: ex.isTimed ? null : 2 } });
 }
 
@@ -200,8 +207,7 @@ export async function movePlanExercise(userId: string, id: string, direction: "u
 
 export async function replacePlanExercise(userId: string, id: string, newExerciseId: string) {
   await ownPlanExercise(userId, id);
-  const ex = await db.exercise.findUnique({ where: { id: newExerciseId } });
-  if (!ex) throw new NotFoundError("Exercise not found");
+  const ex = await assertExerciseAccess(userId, newExerciseId);
   await db.workoutExercise.update({ where: { id }, data: { exerciseId: newExerciseId, ...(ex.isTimed ? { repMin: ex.repMin, repMax: ex.repMax, rirTarget: null } : {}) } });
 }
 

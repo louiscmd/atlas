@@ -56,7 +56,7 @@ export type UserContext = Awaited<ReturnType<typeof getUserContext>>;
 
 async function validExerciseIds(ids: string[]) {
   if (!ids.length) return [];
-  return (await db.exercise.findMany({ where: { id: { in: ids } }, select: { id: true } })).map((e) => e.id);
+  return (await db.exercise.findMany({ where: { id: { in: ids }, ownerId: null }, select: { id: true } })).map((e) => e.id);
 }
 
 export async function saveOnboarding(userId: string, input: OnboardingInput) {
@@ -100,7 +100,7 @@ export async function updateEquipment(userId: string, equipment: string[]) {
 
 export async function setRestriction(userId: string, exerciseId: string, type: "cannot_do" | "dislike" | "prioritize" | null) {
   await db.userRestrictions.deleteMany({ where: { userId, exerciseId } });
-  if (type && (await db.exercise.count({ where: { id: exerciseId } }))) await db.userRestrictions.create({ data: { userId, exerciseId, type } });
+  if (type && (await db.exercise.count({ where: { id: exerciseId, OR: [{ ownerId: null }, { ownerId: userId }] } }))) await db.userRestrictions.create({ data: { userId, exerciseId, type } });
 }
 
 export async function exportUserData(userId: string) {
@@ -121,7 +121,12 @@ export async function exportUserData(userId: string) {
 
 /** Permanently deletes a user, every row they own (FK cascades) and their stored files. */
 export async function deleteUserAccount(userId: string) {
+  // Rows that reference the user's own custom exercises/foods go first, so the
+  // final cascade never trips an exercise/food foreign key.
   await db.$transaction([
+    db.workoutSession.deleteMany({ where: { userId } }),
+    db.workoutPlan.deleteMany({ where: { userId } }),
+    db.meal.deleteMany({ where: { userId } }),
     db.storedFile.deleteMany({ where: { key: { startsWith: `photos-${userId}/` } } }),
     db.user.delete({ where: { id: userId } }),
   ]);
