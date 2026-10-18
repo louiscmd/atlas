@@ -10,6 +10,10 @@ const mono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: { default: "ATLAS — Train, eat, progress", template: "%s · ATLAS" },
   description: "Personalized training plans, guided workouts, nutrition tracking and AI food scanning.",
+  applicationName: "ATLAS",
+  // iOS "Add to Home Screen": app name under the icon, full-screen launch.
+  // The icon itself comes from src/app/apple-icon.png.
+  appleWebApp: { capable: true, title: "ATLAS", statusBarStyle: "default" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
 
