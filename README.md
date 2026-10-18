@@ -16,7 +16,7 @@ npm test             # 55 unit + integration tests (wipes and reuses the forma_t
 ## Deploying to Vercel
 
 1. Create a Postgres database (Neon, Vercel Postgres or Supabase) and copy its connection string.
-2. In Vercel → Settings → Environment Variables add `DATABASE_URL` (use the **pooled** URL if your provider offers one), `APP_SECRET` (a long random string: `openssl rand -hex 32`) and optionally `ANTHROPIC_API_KEY`.
+2. In Vercel → Settings → Environment Variables add `DATABASE_URL` (pooled runtime URL — on Supabase the transaction pooler, port 6543, with `?pgbouncer=true&connection_limit=1`), `DIRECT_URL` (used for migrations — on Supabase the session pooler, port 5432), `APP_SECRET` (a long random string: `openssl rand -hex 32`) and optionally `ANTHROPIC_API_KEY`.
 3. Redeploy. The `vercel-build` script runs `prisma migrate deploy`, seeds the exercise/program/food library on the first deploy only, then `next build`.
 
 Progress photos are stored privately in Postgres (`StoredFile`), so no extra storage service is needed. Uploads are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
