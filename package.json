@@ -12,7 +12,8 @@
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "jobs:daily": "tsx scripts/daily-jobs.ts"
+    "jobs:daily": "tsx scripts/daily-jobs.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
