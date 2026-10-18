@@ -1,12 +1,9 @@
 import "server-only";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { db } from "./db";
 import { randomToken } from "./crypto";
 
-// Private file storage on local disk (outside /public). Swap for S3/GCS with
-// the same interface in production; files are only ever served through
-// authenticated route handlers.
-const ROOT = resolve(process.cwd(), "storage");
+// Private file storage backed by Postgres (works on serverless hosts with no
+// writable disk). Files are only ever served through authenticated handlers.
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 export type ImageType = "image/jpeg" | "image/png" | "image/webp";
@@ -29,18 +26,17 @@ export async function readUploadedImage(file: File | null) {
   return { buf, type } as const;
 }
 
-export async function saveFile(prefix: string, buf: Buffer, ext: string) {
+export async function saveFile(prefix: string, buf: Buffer, mimeType: string) {
   if (!/^[\w-]+$/.test(prefix)) throw new Error("bad prefix");
-  const key = `${prefix}/${randomToken(18)}.${ext}`;
-  await mkdir(join(ROOT, prefix), { recursive: true });
-  await writeFile(join(ROOT, key), buf, { mode: 0o600 });
+  const key = `${prefix}/${randomToken(18)}`;
+  await db.storedFile.create({ data: { key, mimeType, size: buf.length, data: new Uint8Array(buf) } });
   return key;
 }
 
-function safePath(key: string) {
-  const p = resolve(ROOT, key);
-  if (!p.startsWith(ROOT + "/")) throw new Error("bad key");
-  return p;
+export async function readStored(key: string) {
+  const f = await db.storedFile.findUnique({ where: { key } });
+  if (!f) throw new Error("not found");
+  return Buffer.from(f.data);
 }
-export const readStored = (key: string) => readFile(safePath(key));
-export const deleteStored = (key: string) => unlink(safePath(key)).catch(() => undefined);
+
+export const deleteStored = (key: string) => db.storedFile.deleteMany({ where: { key } }).then(() => undefined);

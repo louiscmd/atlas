@@ -12,7 +12,7 @@ export default defineConfig({
     environment: "node",
     include: ["tests/**/*.test.ts"],
     globalSetup: ["tests/globalSetup.ts"],
-    env: { DATABASE_URL: "file:./test.db", APP_SECRET: "test-secret", ANTHROPIC_API_KEY: "" },
+    env: { DATABASE_URL: process.env.TEST_DATABASE_URL ?? "postgresql://forma:forma@localhost:5433/forma_test", APP_SECRET: "test-secret", ANTHROPIC_API_KEY: "" },
     fileParallelism: false,
     testTimeout: 30000,
   },

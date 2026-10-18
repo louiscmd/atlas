@@ -118,3 +118,11 @@ export async function exportUserData(userId: string) {
   });
   return { exportedAt: new Date().toISOString(), note: "Progress photos are listed by metadata; download images individually from the app.", ...user };
 }
+
+/** Permanently deletes a user, every row they own (FK cascades) and their stored files. */
+export async function deleteUserAccount(userId: string) {
+  await db.$transaction([
+    db.storedFile.deleteMany({ where: { key: { startsWith: `photos-${userId}/` } } }),
+    db.user.delete({ where: { id: userId } }),
+  ]);
+}

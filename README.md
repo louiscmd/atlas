@@ -6,11 +6,20 @@ Import your training → set goals → get a personalized plan → train in the 
 
 ```bash
 npm install
-npm run db:push      # create the SQLite dev database (prisma/dev.db)
+PG_DATABASES=forma,forma_test npm run db:local   # local Postgres on :5433 (no Docker), keep running
+npm run db:migrate   # apply prisma/migrations
 npm run db:seed      # 141 exercises, 20 programs, 125 foods
 npm run dev          # http://localhost:3000
-npm test             # 53 unit + integration tests (uses a throwaway prisma/test.db)
+npm test             # 55 unit + integration tests (wipes and reuses the forma_test database)
 ```
+
+## Deploying to Vercel
+
+1. Create a Postgres database (Neon, Vercel Postgres or Supabase) and copy its connection string.
+2. In Vercel → Settings → Environment Variables add `DATABASE_URL` (use the **pooled** URL if your provider offers one), `APP_SECRET` (a long random string: `openssl rand -hex 32`) and optionally `ANTHROPIC_API_KEY`.
+3. Redeploy. The `vercel-build` script runs `prisma migrate deploy`, seeds the exercise/program/food library on the first deploy only, then `next build`.
+
+Progress photos are stored privately in Postgres (`StoredFile`), so no extra storage service is needed. Uploads are downscaled in the browser to stay under Vercel's 4.5 MB request limit.
 
 Copy `.env.example` to `.env`. Everything works without external services; optional keys unlock more:
 
@@ -23,7 +32,7 @@ Copy `.env.example` to `.env`. Everything works without external services; optio
 
 ## Stack
 
-Next.js 15 (App Router, Server Components + Server Actions) · TypeScript · Tailwind CSS v4 · Prisma 6 (SQLite in dev; switch `provider` to `postgresql` for production) · Zod v4 · Anthropic TypeScript SDK · Vitest.
+Next.js 15 (App Router, Server Components + Server Actions) · TypeScript · Tailwind CSS v4 · Prisma 6 + PostgreSQL · Zod v4 · Anthropic TypeScript SDK · Vitest.
 
 ## Architecture
 
@@ -43,7 +52,7 @@ src/app/                      routes: (auth), onboarding, (app)/{home,workout,nu
 
 **AI safety & cost.** All model output is parsed with a Zod schema, then checked against hard domain rules (e.g. plans may only use exercises that exist, fit the user's equipment and aren't excluded; per-muscle weekly volume caps). Invalid output is retried once with the validation errors, then fails safely to a deterministic engine (routine parser, plan generator, curated meal ideas, rules coach) — or, for the food scanner, to an honest "add manually" error. Structured imports that the parser fully understands skip the AI call entirely. Only request metadata is logged (`AIRequest`), never prompts, images or personal data. Server-side refusal fallbacks are enabled (`fallbacks: "default"`).
 
-**Security.** httpOnly session cookies (keyed-hash tokens in DB), bcrypt passwords, single-use expiring verification/reset tokens, rate limits on auth/AI/uploads, server-side ownership checks on every query (see `tests/integration.test.ts` → data isolation), magic-byte image validation, private photo storage outside `public/` served only to the owner with `no-store`, CSP and security headers, no account enumeration on password reset. Server actions never accept a `userId` from the client.
+**Security.** httpOnly session cookies (keyed-hash tokens in DB), bcrypt passwords, single-use expiring verification/reset tokens, rate limits on auth/AI/uploads, server-side ownership checks on every query (see `tests/integration.test.ts` → data isolation), magic-byte image validation, private photo storage in the database, served only to the owner with `no-store`, CSP and security headers, no account enumeration on password reset. Server actions never accept a `userId` from the client.
 
 **Offline.** The workout player writes completed sets to a device queue first (idempotent `clientId` per set) and syncs when the connection returns, so a dropped connection never loses a set.
 

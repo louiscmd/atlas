@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/server/db";
-import { saveOnboarding } from "@/lib/server/services/profile";
+import { deleteUserAccount, saveOnboarding } from "@/lib/server/services/profile";
 import * as plans from "@/lib/server/services/plans";
 import * as workouts from "@/lib/server/services/workouts";
 import * as nutrition from "@/lib/server/services/nutrition";
@@ -14,6 +14,7 @@ import { PROMPTS } from "@/lib/ai/prompts";
 import { CoachSummarySchema } from "@/lib/domain/schemas";
 import { hashPassword, verifyPassword, issueAuthToken, consumeAuthToken } from "@/lib/server/auth";
 import { localDate } from "@/lib/dates";
+import { readStored } from "@/lib/server/storage";
 
 const onboarding = (over: Partial<Parameters<typeof saveOnboarding>[1]> = {}) => ({
   firstName: "Test", age: 30, sex: "male" as const, heightCm: 180, weightKg: 80, unitSystem: "metric" as const, timezone: "UTC", country: null,
@@ -173,6 +174,10 @@ describe("nutrition", () => {
     expect(day.hasEstimates).toBe(true);
   });
 
+  it("food search is case-insensitive", async () => {
+    expect((await nutrition.searchFoods(A, "CHICKEN breast")).map((f) => f.name)).toContain("Chicken breast, cooked");
+  });
+
   it("tracks water and supports undo", async () => {
     await nutrition.addWater(A, today, 500);
     await nutrition.addWater(A, today, 250);
@@ -233,13 +238,22 @@ describe("data isolation — user B can never touch user A's data", () => {
     expect((await progress.weightSeries(B)).entries.every((e) => e.userId === B)).toBe(true);
   });
 
+  it("stores photos privately in the database and serves the exact bytes back", async () => {
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, ...Array(64).fill(7)]);
+    const photo = await progress.addPhoto(A, jpeg, "image/jpeg", "side", null);
+    expect((await readStored((await progress.getPhotoFile(A, photo.id)).storageKey)).equals(jpeg)).toBe(true);
+    await progress.deletePhoto(A, photo.id);
+    expect(await db.storedFile.count({ where: { key: photo.storageKey } })).toBe(0);
+  });
+
   it("account deletion cascades every user-owned row", async () => {
     const C = (await db.user.create({ data: { email: `c-${Date.now()}@forma.test` } })).id;
     await saveOnboarding(C, onboarding());
+    await progress.addPhoto(C, Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5, 6, 7, 8]), "image/jpeg", "front", null);
     await plans.startProgram(C, "beginner-full-body-3");
-    await db.user.delete({ where: { id: C } });
-    const counts = await Promise.all([db.workoutPlan.count({ where: { userId: C } }), db.userProfile.count({ where: { userId: C } }), db.nutritionTarget.count({ where: { userId: C } }), db.progressMeasurement.count({ where: { userId: C } })]);
-    expect(counts).toEqual([0, 0, 0, 0]);
+    await deleteUserAccount(C);
+    const counts = await Promise.all([db.workoutPlan.count({ where: { userId: C } }), db.userProfile.count({ where: { userId: C } }), db.nutritionTarget.count({ where: { userId: C } }), db.progressMeasurement.count({ where: { userId: C } }), db.progressPhoto.count({ where: { userId: C } }), db.storedFile.count({ where: { key: { startsWith: `photos-${C}/` } } })]);
+    expect(counts).toEqual([0, 0, 0, 0, 0, 0]);
   });
 });
 

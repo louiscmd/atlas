@@ -7,8 +7,7 @@ import { requireOnboardedUser, destroySession } from "@/lib/server/auth";
 import { run } from "@/lib/server/action";
 import { db } from "@/lib/server/db";
 import { env } from "@/lib/server/env";
-import { deleteStored } from "@/lib/server/storage";
-import { updateEquipment } from "@/lib/server/services/profile";
+import { deleteUserAccount, updateEquipment } from "@/lib/server/services/profile";
 import { setNotificationPref } from "@/lib/server/services/notifications";
 import { ACTIVITY_LEVELS, EXPERIENCE, GOALS, LOCATIONS, MUSCLES, SESSION_LENGTHS, keys } from "@/lib/domain/enums";
 
@@ -74,9 +73,7 @@ export async function deleteAccount(confirmText: string) {
   const user = await requireOnboardedUser();
   const res = await run(async () => {
     if (confirmText.trim().toUpperCase() !== "DELETE") throw new Error("Type DELETE to confirm");
-    const photos = await db.progressPhoto.findMany({ where: { userId: user.id }, select: { storageKey: true } });
-    await db.user.delete({ where: { id: user.id } }); // cascades to every user-owned row
-    await Promise.all(photos.map((p) => deleteStored(p.storageKey)));
+    await deleteUserAccount(user.id);
   });
   if (!res.ok) return res;
   await destroySession();

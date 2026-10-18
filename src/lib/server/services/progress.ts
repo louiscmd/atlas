@@ -61,8 +61,7 @@ export async function listPhotos(userId: string) {
 
 export async function addPhoto(userId: string, buf: Buffer, mimeType: string, pose: string, note: string | null) {
   if (!["front", "side", "back"].includes(pose)) throw new Error("Choose front, side or back");
-  const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
-  const storageKey = await saveFile(`photos-${userId}`, buf, ext);
+  const storageKey = await saveFile(`photos-${userId}`, buf, mimeType);
   const weight = await db.progressMeasurement.findFirst({ where: { userId, type: "weight" }, orderBy: { measuredAt: "desc" } });
   return db.progressPhoto.create({ data: { userId, pose, storageKey, mimeType, bodyWeightKg: weight?.value ?? null, note: note?.slice(0, 200) || null } });
 }

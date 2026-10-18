@@ -14,21 +14,11 @@ import { Sheet } from "@/components/ui/Sheet";
 import { useToast } from "@/components/ui/Toast";
 import { MEAL_TYPES } from "@/lib/domain/enums";
 import { cn } from "@/lib/cn";
+import { downscaleImage } from "@/lib/image";
 import { createFood, logFood, logScan, searchFoods } from "../actions";
 
 type Item = FoodScanResult["items"][number];
 type Phase = { s: "idle" } | { s: "loading"; preview: string } | { s: "error"; message: string; preview?: string } | { s: "photo"; scanId: string; result: FoodScanResult; preview: string } | { s: "label"; scanId: string; label: NutritionLabel; preview: string };
-
-/** Downscale on the device: faster uploads, lower AI cost, strips EXIF location. */
-async function downscale(file: File, max = 1600): Promise<Blob> {
-  const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bmp.width * scale);
-  canvas.height = Math.round(bmp.height * scale);
-  canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.85));
-}
 
 export function Scanner({ aiEnabled, devSample, date, defaultMeal }: { aiEnabled: boolean; devSample: boolean; date: string; defaultMeal: string }) {
   const [mode, setMode] = useState<"photo" | "label">("photo");
@@ -42,7 +32,7 @@ export function Scanner({ aiEnabled, devSample, date, defaultMeal }: { aiEnabled
     const preview = URL.createObjectURL(file);
     setPhase({ s: "loading", preview });
     try {
-      const blob = await downscale(file).catch(() => file);
+      const blob = await downscaleImage(file).catch(() => file);
       const body = new FormData();
       body.set("image", blob, "scan.jpg");
       body.set("kind", mode);

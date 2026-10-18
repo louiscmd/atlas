@@ -7,13 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "jobs:daily": "tsx scripts/daily-jobs.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:local": "node scripts/local-postgres.mjs",
+    "db:migrate": "prisma migrate deploy",
+    "db:migrate:dev": "prisma migrate dev",
+    "vercel-build": "prisma migrate deploy && tsx prisma/seed.ts --if-empty && next build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",
@@ -35,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "embedded-postgres": "^18.4.0-beta.17",
     "eslint": "^9",
     "eslint-config-next": "15.5.28",
     "tailwindcss": "^4",
@@ -46,7 +49,8 @@
     "@prisma/engines@6.19.3": true,
     "prisma@6.19.3": true,
     "@prisma/client@6.19.3": true,
-    "unrs-resolver@1.12.2": true
+    "unrs-resolver@1.12.2": true,
+    "@embedded-postgres/darwin-arm64@18.4.0-beta.17": true
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

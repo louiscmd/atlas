@@ -105,7 +105,7 @@ export async function searchFoods(userId: string, q: string, take = 30) {
   if (!query) return [];
   const words = query.split(/\s+/).slice(0, 4);
   return db.food.findMany({
-    where: { AND: [{ OR: [{ userId: null }, { userId }] }, ...words.map((w) => ({ name: { contains: w } }))] },
+    where: { AND: [{ OR: [{ userId: null }, { userId }] }, ...words.map((w) => ({ name: { contains: w, mode: "insensitive" as const } }))] },
     take, orderBy: { name: "asc" }, select: foodSelect,
   });
 }

@@ -38,6 +38,10 @@ function validate() {
 
 async function main() {
   validate();
+  if (process.argv.includes("--if-empty") && (await prisma.exercise.count()) > 0) {
+    console.log("Seed skipped: database already has data (run `npm run db:seed` to refresh the library).");
+    return;
+  }
 
   // Exercises (upsert by slug so ids stay stable across reseeds)
   for (const ex of EXERCISES) {

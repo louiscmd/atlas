@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/Toast";
 import { formatDay } from "@/lib/dates";
 import { fmtWeight, type UnitSystem } from "@/lib/units";
 import { deletePhoto } from "../actions";
+import { downscaleImage } from "@/lib/image";
 
 type P = { id: string; pose: string; date: string; bodyWeightKg: number | null; note: string | null };
 
@@ -33,7 +34,8 @@ export function Photos({ photos, unit }: { photos: P[]; unit: UnitSystem }) {
     if (!file) return;
     setUploading(true);
     const body = new FormData();
-    body.set("image", file); body.set("pose", pose); body.set("note", note);
+    const blob = await downscaleImage(file, 2000, 0.88).catch(() => file);
+    body.set("image", blob, "photo.jpg"); body.set("pose", pose); body.set("note", note);
     try {
       const r = await fetch("/api/photos", { method: "POST", body });
       const j = await r.json().catch(() => ({}));

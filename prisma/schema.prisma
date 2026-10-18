@@ -1,14 +1,13 @@
-// Forma — data model.
-// SQLite in development (zero setup). For production switch `provider` to
-// "postgresql"; the schema avoids SQLite-only features. String "enum" columns
-// are validated in the application layer (src/lib/domain/enums.ts).
+// Forma — data model (PostgreSQL in every environment).
+// String "enum" columns are validated in the application layer
+// (src/lib/domain/enums.ts) so new values don't need a migration.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -459,7 +458,7 @@ model ProgressPhoto {
   id           String   @id @default(cuid())
   userId       String
   pose         String // front | side | back
-  storageKey   String   @unique // private storage path, never public
+  storageKey   String   @unique // key into StoredFile, never a public URL
   mimeType     String
   takenAt      DateTime @default(now())
   bodyWeightKg Float?
@@ -710,4 +709,14 @@ model AnalyticsEvent {
   createdAt DateTime @default(now())
 
   @@index([name, createdAt])
+}
+
+// Private binary storage (progress photos). Kept in Postgres so it works on
+// serverless hosts without a writable disk; swap for object storage at scale.
+model StoredFile {
+  key       String   @id
+  mimeType  String
+  size      Int
+  data      Bytes
+  createdAt DateTime @default(now())
 }
