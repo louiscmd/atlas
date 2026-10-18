@@ -4,7 +4,8 @@ import { requireOnboardedUser } from "@/lib/server/auth";
 import { getUserContext } from "@/lib/server/services/profile";
 import { estimateDayMinutes, getInProgressSession, getTodayWorkout } from "@/lib/server/services/workouts";
 import { getDay } from "@/lib/server/services/nutrition";
-import { weeklyStreak } from "@/lib/server/services/progress";
+import { getChallenge, weeklyStreak } from "@/lib/server/services/progress";
+import { ChallengeSummary } from "@/components/app/ChallengeCard";
 import { db } from "@/lib/server/db";
 import { greeting, localDate } from "@/lib/dates";
 import { GOALS, WEEKDAYS, labelOf } from "@/lib/domain/enums";
@@ -19,10 +20,11 @@ export const metadata = { title: "Home" };
 export default async function Home() {
   const user = await requireOnboardedUser();
   const ctx = await getUserContext(user.id);
-  const [today, active, day, streak, lastPR] = await Promise.all([
+  const [today, active, day, streak, lastPR, challenge] = await Promise.all([
     getTodayWorkout(user.id, ctx.tz), getInProgressSession(user.id), getDay(user.id, localDate(ctx.tz)),
     weeklyStreak(user.id, ctx.goals?.daysPerWeek ?? 3),
     db.personalRecord.findFirst({ where: { userId: user.id, achievedAt: { gte: new Date(Date.now() - 7 * 86400_000) } }, orderBy: { achievedAt: "desc" }, include: { exercise: { select: { name: true } } } }),
+    getChallenge(user.id, ctx.tz),
   ]);
   const t = day.target;
   const kcalLeft = t ? Math.round(t.calories - day.totals.calories) : null;
@@ -117,6 +119,8 @@ export default async function Home() {
           </Link>
         ))}
       </section>
+
+      <ChallengeSummary c={challenge} />
 
       {/* Progress strip */}
       <div className="grid gap-3 sm:grid-cols-2">

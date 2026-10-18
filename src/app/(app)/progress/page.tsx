@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowRight, CalendarCheck, Dumbbell, Salad, Scale, Trophy } from "lucide-react";
 import { requireOnboardedUser } from "@/lib/server/auth";
 import { getUserContext } from "@/lib/server/services/profile";
-import { consistency, strengthOverview, weightSeries, weeklyStreak } from "@/lib/server/services/progress";
+import { consistency, getChallenge, strengthOverview, weightSeries, weeklyStreak } from "@/lib/server/services/progress";
+import { ChallengeCard } from "@/components/app/ChallengeCard";
 import { history } from "@/lib/server/services/nutrition";
 import { db } from "@/lib/server/db";
 import { fmtWeight, toDisplayWeight, weightUnit } from "@/lib/units";
@@ -18,9 +19,10 @@ export const metadata = { title: "Progress" };
 export default async function Page() {
   const user = await requireOnboardedUser();
   const ctx = await getUserContext(user.id);
-  const [w, strength, sessions, nut, streak, prs] = await Promise.all([
+  const [w, strength, sessions, nut, streak, prs, challenge] = await Promise.all([
     weightSeries(user.id, 90), strengthOverview(user.id), consistency(user.id, 8), history(user.id, ctx.tz, 28), weeklyStreak(user.id, ctx.goals?.daysPerWeek ?? 3),
     db.personalRecord.findMany({ where: { userId: user.id }, orderBy: { achievedAt: "desc" }, take: 5, include: { exercise: { select: { name: true } } } }),
+    getChallenge(user.id, ctx.tz),
   ]);
   const u = ctx.unit;
   const goalKg = ctx.goals?.goalWeightKg;
@@ -35,6 +37,7 @@ export default async function Page() {
   return (
     <>
       <PageHeader title="Progress" subtitle="The big picture of your training, nutrition and body." />
+      <div id="challenge" className="mb-4 scroll-mt-24"><ChallengeCard c={challenge} /></div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-5">
           <div className="flex items-start justify-between"><h2 className="t-h3 flex items-center gap-2"><Scale className="size-4 text-accent" />Body weight</h2><Link href="/progress/weight" className="t-small text-fg-2 hover:text-fg">Details</Link></div>

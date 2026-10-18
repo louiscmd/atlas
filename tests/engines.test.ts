@@ -186,3 +186,38 @@ describe("plan generator", () => {
     expect(checkPlanConstraints(plan, { library: byId, equipment: ["bands"], excludedExerciseIds: [] }).length).toBeGreaterThan(0);
   });
 });
+
+import { computeChallenge } from "@/lib/engines/challenge";
+describe("20-week challenge", () => {
+  // 2026-10-14 is a Wednesday → week 1 starts Monday 2026-10-12
+  const five = (monday: string) => ["0", "1", "2", "3", "4"].map((d) => `${monday.slice(0, 8)}${String(Number(monday.slice(8)) + Number(d)).padStart(2, "0")}`);
+  it("starts on the Monday of the join week and spans 20 weeks", () => {
+    const c = computeChallenge({ joinedOn: "2026-10-14", today: "2026-10-14", workoutDates: [] });
+    expect(c.weeks).toHaveLength(20);
+    expect(c.weeks[0]).toMatchObject({ index: 1, start: "2026-10-12", end: "2026-10-18", status: "current" });
+    expect(c.weeks[19].end).toBe("2027-02-28");
+    expect(c.weeks[1].status).toBe("upcoming");
+  });
+  it("ticks a week at 5 workouts, marks past weeks below 5 as missed", () => {
+    const c = computeChallenge({ joinedOn: "2026-10-12", today: "2026-10-28", workoutDates: [...five("2026-10-12"), "2026-10-19", "2026-10-20", "2026-10-21", "2026-10-22", "2026-10-26"] });
+    expect(c.weeks[0]).toMatchObject({ count: 5, status: "complete" });
+    expect(c.weeks[1]).toMatchObject({ count: 4, status: "missed" });
+    expect(c.weeks[2]).toMatchObject({ count: 1, status: "current" });
+    expect(c.completed).toBe(1);
+    expect(c.missed).toBe(1);
+  });
+  it("counts the current week as complete as soon as it hits 5, and more than 5 still counts once", () => {
+    const c = computeChallenge({ joinedOn: "2026-10-12", today: "2026-10-16", workoutDates: [...five("2026-10-12"), "2026-10-16"] });
+    expect(c.weeks[0]).toMatchObject({ count: 6, status: "complete" });
+    expect(c.completed).toBe(1);
+  });
+  it("ignores workouts outside the 20 weeks and reports finished/perfect", () => {
+    const dates: string[] = [];
+    for (let w = 0; w < 20; w++) {
+      const d = new Date(Date.UTC(2026, 9, 12 + w * 7));
+      for (let k = 0; k < 5; k++) dates.push(new Date(+d + k * 86400_000).toISOString().slice(0, 10));
+    }
+    const c = computeChallenge({ joinedOn: "2026-10-12", today: "2027-03-10", workoutDates: [...dates, "2027-03-02"] });
+    expect(c).toMatchObject({ completed: 20, perfect: true, finished: true, current: null });
+  });
+});

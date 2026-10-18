@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "../db";
 import { smoothTrend, estimate1RM, totalVolume } from "@/lib/engines/performance";
 import { NotFoundError } from "./plans";
+import { localDate, weekStart } from "@/lib/dates";
+import { CHALLENGE_WEEKS, computeChallenge } from "@/lib/engines/challenge";
 import { deleteStored, saveFile } from "../storage";
 
 export async function weightSeries(userId: string, days = 180) {
@@ -101,4 +103,19 @@ export async function weeklyStreak(userId: string, daysPerWeek: number) {
     else if (k !== thisWeek) break; // current week may still be in progress
   }
   return { streak, thisWeek: counts.get(thisWeek) ?? 0 };
+}
+
+/** 20-week challenge, starting the week the user finished onboarding. */
+export async function getChallenge(userId: string, tz: string) {
+  const [profile, user] = await Promise.all([
+    db.userProfile.findUnique({ where: { userId }, select: { onboardingCompletedAt: true } }),
+    db.user.findUniqueOrThrow({ where: { id: userId }, select: { createdAt: true } }),
+  ]);
+  const joinedOn = localDate(tz, profile?.onboardingCompletedAt ?? user.createdAt);
+  const from = new Date(`${weekStart(joinedOn)}T00:00:00Z`);
+  const sessions = await db.workoutSession.findMany({
+    where: { userId, status: "completed", completedAt: { gte: new Date(+from - 14 * 3600_000), lt: new Date(+from + (CHALLENGE_WEEKS * 7 + 1) * 86400_000) } },
+    select: { completedAt: true },
+  });
+  return computeChallenge({ joinedOn, today: localDate(tz), workoutDates: sessions.map((s) => localDate(tz, s.completedAt!)) });
 }
