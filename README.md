@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Forma — fitness & wellness app
 
-## Getting Started
+Import your training → set goals → get a personalized plan → train in the app → track progression → log nutrition (incl. AI food scanning) → weekly AI review → adapt.
 
-First, run the development server:
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run db:push      # create the SQLite dev database (prisma/dev.db)
+npm run db:seed      # 141 exercises, 20 programs, 125 foods
+npm run dev          # http://localhost:3000
+npm test             # 53 unit + integration tests (uses a throwaway prisma/test.db)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Copy `.env.example` to `.env`. Everything works without external services; optional keys unlock more:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Variable | Effect |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | Enables AI routine import, AI plan generation, food photo & label scanning, the AI nutrition assistant and the AI weekly coach (model: `claude-opus-5-5`, override with `AI_MODEL`). |
+| `FOOD_VISION_DEV_SAMPLE=1` | **Development only, no AI key.** The scanner returns a fixed sample that is labelled "development sample — not an analysis of your photo", so the correction/logging flow can be exercised. Ignored in production. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Enables "Continue with Google" (OAuth code flow, callback `/api/auth/google/callback`). |
+| `APP_SECRET` | Keyed hashing for session/reset tokens and analytics ids. **Required in production.** |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+Next.js 15 (App Router, Server Components + Server Actions) · TypeScript · Tailwind CSS v4 · Prisma 6 (SQLite in dev; switch `provider` to `postgresql` for production) · Zod v4 · Anthropic TypeScript SDK · Vitest.
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+prisma/schema.prisma          40+ normalized tables (users, plans, sessions, sets, PRs, foods, scans, reports, AI logs…)
+prisma/seed/                  exercise library, program templates, food database, curated videos.json
+src/lib/domain/               enums (single source of truth) + Zod schemas for every AI/API boundary
+src/lib/engines/              pure, tested logic: nutrition math, progression, PR detection,
+                              replacement ranking, rules-based plan generator, workout text parser
+src/lib/server/               db, auth/sessions, rate limiting, storage, analytics, action error wrapper
+src/lib/server/services/      data access — every function takes userId and scopes every query by it
+src/lib/ai/                   versioned prompts + runStructured() + 4 separate services:
+                              workoutPlanner · foodVision · nutritionAssistant · coach
+src/components/ui/            design system (buttons, cards, sheets, steppers, rings, charts, states…)
+src/app/                      routes: (auth), onboarding, (app)/{home,workout,nutrition,progress,profile}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**AI safety & cost.** All model output is parsed with a Zod schema, then checked against hard domain rules (e.g. plans may only use exercises that exist, fit the user's equipment and aren't excluded; per-muscle weekly volume caps). Invalid output is retried once with the validation errors, then fails safely to a deterministic engine (routine parser, plan generator, curated meal ideas, rules coach) — or, for the food scanner, to an honest "add manually" error. Structured imports that the parser fully understands skip the AI call entirely. Only request metadata is logged (`AIRequest`), never prompts, images or personal data. Server-side refusal fallbacks are enabled (`fallbacks: "default"`).
 
-## Deploy on Vercel
+**Security.** httpOnly session cookies (keyed-hash tokens in DB), bcrypt passwords, single-use expiring verification/reset tokens, rate limits on auth/AI/uploads, server-side ownership checks on every query (see `tests/integration.test.ts` → data isolation), magic-byte image validation, private photo storage outside `public/` served only to the owner with `no-store`, CSP and security headers, no account enumeration on password reset. Server actions never accept a `userId` from the client.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+**Offline.** The workout player writes completed sets to a device queue first (idempotent `clientId` per set) and syncs when the connection returns, so a dropped connection never loses a set.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Admin-ready data
+
+Exercises, alternatives, videos, programs and foods are all database rows seeded from `prisma/seed/*`. To curate demonstration videos, add verified entries to `prisma/seed/videos.json` (`{ "barbell-bench-press": { "youtubeId": "…", "title": "…", "channel": "…" } }`) and re-run `npm run db:seed`. Until an exercise has a curated video, "Watch Demonstration" opens a YouTube search instead of embedding an unverified video.
+
+## Jobs
+
+`npm run jobs:daily` creates "Your workout is ready" notifications for users with a workout today. Schedule it with cron.
+
+## Known gaps / next steps
+
+- Apple sign-in needs an Apple Developer key (signed client-secret JWT) — the button is shown disabled.
+- Email delivery: `src/lib/server/mailer.ts` logs links to the console in development; plug in a provider for production.
+- Push notifications: notifications are in-app; delivery channels plug into `services/notifications.ts`.
+- Rate limiting and the exercise-library cache are in-memory (single instance); swap for Redis when scaling out.
+- Payments/subscriptions are modelled (`Subscription`) but billing isn't wired.
+- Global search across exercises/foods/programs exists per section; a unified search is not built yet.
+- No service worker: the workout queue survives connection drops while the page is open, not a full offline reload.

@@ -1,0 +1,4 @@
+{
+  "_comment": "Curated demonstration videos keyed by exercise slug. Only add videos you have verified show the exercise. Fields: youtubeId, title, channel. Run `npm run db:seed` to apply, or `npm run videos:find` with YOUTUBE_API_KEY to propose candidates.",
+  "videos": {}
+}
