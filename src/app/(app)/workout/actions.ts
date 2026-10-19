@@ -182,3 +182,14 @@ export async function finishWorkout(sessionId: string, notes?: string) {
   });
 }
 
+
+export async function changeWorkoutDate(sessionId: string, date: string) {
+  const user = await requireOnboardedUser();
+  return run(async () => {
+    const ctx = await getUserContext(user.id);
+    await workouts.changeSessionDate(user.id, id.parse(sessionId), z.string().regex(/^\d{4}-\d{2}-\d{2}$/).parse(date), ctx.tz);
+    refreshOutsidePlayer();
+    revalidatePath(`/workout/history/${sessionId}`);
+    revalidatePath("/progress", "layout");
+  });
+}

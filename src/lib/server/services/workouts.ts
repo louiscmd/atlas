@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "../db";
-import { localDate, weekdayOf } from "@/lib/dates";
+import { addDays, localDate, weekdayOf } from "@/lib/dates";
 import { recommendNext } from "@/lib/engines/progression";
 import { bestsFromHistory, detectPRs, PR_LABEL } from "@/lib/engines/records";
 import { totalVolume } from "@/lib/engines/performance";
@@ -221,4 +221,33 @@ export async function listHistory(userId: string, take = 30, cursor?: string) {
     where: { userId, status: "completed" }, orderBy: { completedAt: "desc" }, take, ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     include: { _count: { select: { sets: true, records: true } }, exercises: { select: { exerciseName: true, status: true }, orderBy: { order: "asc" } } },
   });
+}
+
+/**
+ * Moves a completed workout to another day (e.g. logged late). Keeps the time
+ * of day and duration; sets and PRs from that session move with it.
+ */
+export async function changeSessionDate(userId: string, sessionId: string, date: string, tz: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Pick a valid date");
+  const s = await db.workoutSession.findFirst({ where: { id: sessionId, userId } });
+  if (!s) throw new NotFoundError("Workout not found");
+  if (s.status !== "completed" || !s.completedAt) throw new Error("Only finished workouts can be moved");
+  const today = localDate(tz);
+  if (date > today) throw new Error("A workout can't be moved into the future");
+  if (date < addDays(today, -365)) throw new Error("Pick a date within the last year");
+  const current = localDate(tz, s.completedAt);
+  const [y1, m1, d1] = current.split("-").map(Number), [y2, m2, d2] = date.split("-").map(Number);
+  const deltaMs = (Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1));
+  if (deltaMs === 0) return s;
+  const shift = (d: Date) => new Date(d.getTime() + deltaMs);
+  const [sets, prs] = await Promise.all([
+    db.workoutSet.findMany({ where: { sessionId }, select: { id: true, completedAt: true } }),
+    db.personalRecord.findMany({ where: { sessionId }, select: { id: true, achievedAt: true } }),
+  ]);
+  await db.$transaction([
+    db.workoutSession.update({ where: { id: sessionId }, data: { startedAt: shift(s.startedAt), completedAt: shift(s.completedAt) } }),
+    ...sets.map((x) => db.workoutSet.update({ where: { id: x.id }, data: { completedAt: shift(x.completedAt) } })),
+    ...prs.map((x) => db.personalRecord.update({ where: { id: x.id }, data: { achievedAt: shift(x.achievedAt) } })),
+  ]);
+  return db.workoutSession.findUniqueOrThrow({ where: { id: sessionId } });
 }

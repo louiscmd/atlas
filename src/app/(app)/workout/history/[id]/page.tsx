@@ -7,7 +7,8 @@ import { getUserContext } from "@/lib/server/services/profile";
 import { NotFoundError } from "@/lib/server/services/plans";
 import { PR_LABEL } from "@/lib/engines/records";
 import { estimate1RM } from "@/lib/engines/performance";
-import { formatDuration } from "@/lib/dates";
+import { formatDuration, localDate } from "@/lib/dates";
+import { ChangeDate } from "./ChangeDate";
 import { fmtWeight, toDisplayWeight, weightUnit } from "@/lib/units";
 import { PageHeader } from "@/components/app/PageHeader";
 import { Badge, Card } from "@/components/ui/Card";
@@ -30,7 +31,8 @@ export default async function Page({ params, searchParams }: { params: Promise<{
           <div><p className="t-caption text-accent">Workout complete</p><p className="t-h3 mt-0.5">{s.records.length ? `Great session — ${s.records.length} new PR${s.records.length > 1 ? "s" : ""}!` : "Great session. It's logged."}</p></div>
         </div>
       )}
-      <PageHeader back={{ href: "/workout/history", label: "History" }} title={s.name} subtitle={(s.completedAt ?? s.startedAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: ctx.tz })} />
+      <PageHeader back={{ href: "/workout/history", label: "History" }} title={s.name} subtitle={(s.completedAt ?? s.startedAt).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: ctx.tz })}
+        action={s.status === "completed" && s.completedAt ? <ChangeDate sessionId={s.id} current={localDate(ctx.tz, s.completedAt)} today={localDate(ctx.tz)} /> : undefined} />
       <div className="mb-5 grid grid-cols-3 gap-3">
         <StatCard size="sm" label="Duration" value={formatDuration(s.durationSec ?? 0)} />
         <StatCard size="sm" label="Sets" value={s.exercises.reduce((n, e) => n + e.sets.length, 0)} />

@@ -13,7 +13,8 @@ import { runStructured } from "@/lib/ai/client";
 import { PROMPTS } from "@/lib/ai/prompts";
 import { CoachSummarySchema } from "@/lib/domain/schemas";
 import { hashPassword, verifyPassword, issueAuthToken, consumeAuthToken } from "@/lib/server/auth";
-import { localDate } from "@/lib/dates";
+import { addDays, localDate } from "@/lib/dates";
+import { getChallenge } from "@/lib/server/services/progress";
 import { readStored } from "@/lib/server/storage";
 
 const onboarding = (over: Partial<Parameters<typeof saveOnboarding>[1]> = {}) => ({
@@ -311,6 +312,47 @@ describe("custom exercises from imports", () => {
     await deleteUserAccount(D);
     expect(await db.exercise.count({ where: { ownerId: D } })).toBe(0);
     expect(await db.workoutSet.count({ where: { userId: D } })).toBe(0);
+  });
+});
+
+describe("changing a workout's date", () => {
+  it("moves the session, its sets and PRs to the chosen day, keeping time of day", async () => {
+    const s = await db.workoutSession.findFirstOrThrow({ where: { userId: A, status: "completed", sets: { some: {} } }, include: { sets: true } });
+    const target = addDays(localDate("UTC", s.completedAt!), -3);
+    const before = s.completedAt!.toISOString().slice(11);
+    await workouts.changeSessionDate(A, s.id, target, "UTC");
+    const after = await db.workoutSession.findUniqueOrThrow({ where: { id: s.id }, include: { sets: true } });
+    expect(localDate("UTC", after.completedAt!)).toBe(target);
+    expect(after.completedAt!.toISOString().slice(11)).toBe(before);
+    expect(+after.completedAt! - +after.startedAt).toBe(+s.completedAt! - +s.startedAt);
+    for (const set of after.sets) expect(localDate("UTC", set.completedAt)).toBe(target);
+  });
+
+  it("counts the moved workout in the earlier challenge week", async () => {
+    const E = (await db.user.create({ data: { email: `e-${Date.now()}@forma.test` } })).id;
+    await saveOnboarding(E, onboarding());
+    await db.userProfile.update({ where: { userId: E }, data: { onboardingCompletedAt: new Date(Date.now() - 8 * 86400_000) } });
+    const s = await workouts.startSession(E, null);
+    const bench = await db.exercise.findUniqueOrThrow({ where: { slug: "push-up" } });
+    const se = await workouts.addExerciseToSession(E, s.id, bench.id);
+    await workouts.logSet(E, { clientId: `e-set-${Date.now()}`, sessionExerciseId: se.id, setNumber: 1, weightKg: 0, reps: 10 });
+    await workouts.completeSession(E, s.id);
+    const before = await getChallenge(E, "UTC");
+    const cur = before.current!, prev = before.weeks[cur.index - 2];
+    expect(cur.count).toBe(1);
+    await workouts.changeSessionDate(E, s.id, prev.end, "UTC"); // e.g. Monday's workout → previous Sunday
+    const after = await getChallenge(E, "UTC");
+    expect(after.weeks[prev.index - 1].count).toBe(prev.count + 1);
+    expect(after.weeks[cur.index - 1].count).toBe(0);
+  });
+
+  it("rejects future dates, unfinished workouts and other users", async () => {
+    const s = await db.workoutSession.findFirstOrThrow({ where: { userId: A, status: "completed" } });
+    await expect(workouts.changeSessionDate(A, s.id, addDays(localDate("UTC"), 1), "UTC")).rejects.toThrow(/future/);
+    await expect(workouts.changeSessionDate(B, s.id, localDate("UTC"), "UTC")).rejects.toBeInstanceOf(plans.NotFoundError);
+    const open = await workouts.startSession(B, null);
+    await expect(workouts.changeSessionDate(B, open.id, localDate("UTC"), "UTC")).rejects.toThrow(/finished/);
+    await workouts.discardSession(B, open.id);
   });
 });
 
